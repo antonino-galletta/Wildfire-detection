@@ -1,0 +1,46 @@
+services:
+  alert-manager:
+    image: agalletta/wildfire-alert-manager:latest
+    container_name: alert-manager
+    ports:
+      - "8005:8005"
+    environment:
+      - ALERT_NODE=mac-local
+
+  fire-analyser:
+    image: agalletta/wildfire-fire-analyser:latest
+    container_name: fire-analyser
+    ports:
+      - "8003:8003"
+    environment:
+      - INFERENCE_NODE=mac-local
+      - CONFIDENCE_THR=0.5
+      - ALERT_MANAGER_URL=http://host.docker.internal:8005
+    depends_on:
+      - alert-manager
+
+  preprocessor:
+    image: agalletta/wildfire-preprocessor:latest
+    container_name: preprocessor
+    ports:
+      - "8002:8002"
+    environment:
+      - PROCESSING_NODE=mac-local
+      - FIRE_ANALYSER_URL=http://host.docker.internal:8003
+    depends_on:
+      - fire-analyser
+
+  image-capture:
+    image: agalletta/wildfire-image-capture:latest
+    container_name: image-capture
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./image-capture/dataset:/var/wildfire/images
+    environment:
+      - DRONE_ID=mac-local
+      - IMAGES_DIR=/var/wildfire/images
+      - INTERVAL_SECONDS=3.0
+      - PREPROCESSOR_URL=http://host.docker.internal:8002
+    depends_on:
+      - preprocessor

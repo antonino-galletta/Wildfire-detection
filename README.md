@@ -136,59 +136,52 @@ Create a `docker-compose.yml` file similar to the following (adapt paths and env
 
 ```yaml
 services:
-  image-capture:
-    image: agalletta/wildfire-image-capture:latest
+  alert-manager:
+    image: agalletta/wildfire-alert-manager:latest
+    container_name: alert-manager
     ports:
-      - "8001:8001"
-    volumes:
-      - /path/to/images:/images:ro
+      - "8005:8005"
     environment:
-      - DRONE_ID=drone-1
-      - IMAGES_DIR=/images
-      - INTERVAL_SECONDS=3
-      - PREPROCESSOR_URL=http://preprocessor:8002
-    depends_on:
-      - preprocessor
-
-  preprocessor:
-    image: agalletta/wildfire-preprocessor:latest
-    ports:
-      - "8002:8002"
-    volumes:
-      - /path/to/output:/var/wildfire/output
-    environment:
-      - PROCESSING_NODE=preprocessor-01
-      - TARGET_WIDTH=640
-      - TARGET_HEIGHT=480
-      - FIRE_ANALYSER_URL=http://fire-analyser:8003
-    depends_on:
-      - fire-analyser
+      - ALERT_NODE=mac-local
 
   fire-analyser:
     image: agalletta/wildfire-fire-analyser:latest
+    container_name: fire-analyser
     ports:
       - "8003:8003"
-    volumes:
-      - /path/to/models:/var/wildfire/models:ro
-      - /path/to/output:/var/wildfire/output
     environment:
-      - INFERENCE_NODE=fire-analyser-01
-      - MODEL_PATH=/var/wildfire/models/fire_classifier.pt
+      - INFERENCE_NODE=mac-local
       - CONFIDENCE_THR=0.5
-      - ALERT_MANAGER_URL=http://alert-manager:8005
+      - ALERT_MANAGER_URL=http://host.docker.internal:8005
     depends_on:
       - alert-manager
 
-  alert-manager:
-    image: agalletta/wildfire-alert-manager:latest
+  preprocessor:
+    image: agalletta/wildfire-preprocessor:latest
+    container_name: preprocessor
     ports:
-      - "8005:8000"
+      - "8002:8002"
     environment:
-      - ALERT_NODE=alert-manager-01
-      - ALERT_TTL_H=24
-      - MAP_CENTER_LAT=38.1137
-      - MAP_CENTER_LON=15.3315
-      - MAP_ZOOM=10
+      - PROCESSING_NODE=mac-local
+      - FIRE_ANALYSER_URL=http://host.docker.internal:8003
+    depends_on:
+      - fire-analyser
+
+  image-capture:
+    image: agalletta/wildfire-image-capture:latest
+    container_name: image-capture
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./image-capture/dataset:/var/wildfire/images
+    environment:
+      - DRONE_ID=mac-local
+      - IMAGES_DIR=/var/wildfire/images
+      - INTERVAL_SECONDS=3.0
+      - PREPROCESSOR_URL=http://host.docker.internal:8002
+    depends_on:
+      - preprocessor
+
 ```
 
 Start the stack:
